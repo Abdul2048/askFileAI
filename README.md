@@ -91,6 +91,7 @@ Make sure you have:
 | `requirements.py` | Shared imports and setup code                 |
 
 ---
+![Screenshot 2025-07-02 234822](https://github.com/user-attachments/assets/1bc3652e-d7e0-41f5-829c-8d5733d09d65)
 
 ## 📚 Example Tasks
 
