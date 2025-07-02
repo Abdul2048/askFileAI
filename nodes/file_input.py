@@ -1,7 +1,6 @@
-from requirements import START, END, StateGraph, TypedDict, io, contextlib, os, sys, re, json ,requests  
+from nodes.requirements import START, END, StateGraph, TypedDict, io, contextlib, os, sys, re, json ,requests  
 from append_file import append_to_file
-from state import AgentState
-
+from nodes.state import AgentState
 
 def get_file_input(state: AgentState) -> AgentState:
     """
