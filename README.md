@@ -54,7 +54,7 @@ Make sure you have:
 1. **Clone the repo**:
 
    ```bash
-   git clone https://github.com/your_username/AskFileAI.git
+   git clone https://github.com/Abdul2048/AskFileAI.git
    cd AskFileAI
    ```
 
