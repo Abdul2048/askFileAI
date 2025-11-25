@@ -1,0 +1,23 @@
+# Core frameworks
+langchain>=0.1.0
+langgraph>=0.0.20
+langchain-community>=0.0.10
+
+# Vector store
+chromadb>=0.4.0
+
+# File processing
+PyPDF2>=3.0.0
+python-docx>=1.0.0
+openpyxl>=3.1.0
+pandas>=2.0.0
+
+# OCR (optional - install Tesseract separately)
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# Ollama client
+ollama>=0.1.0
+
+# Utilities
+python-dotenv>=1.0.0
