@@ -5,7 +5,7 @@ class Config:
     """Configuration settings for AskFileAI"""
     
     OLLAMA_BASE_URL = "http://localhost:11434"
-    LLM_MODEL = "qwen2.5:7b"  # Change to your installed model
+    LLM_MODEL = "qwen2.5:7b"  
     EMBEDDING_MODEL = "nomic-embed-text"
     
     CHUNK_SIZE = 1000

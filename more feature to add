@@ -1,0 +1,24 @@
+------ means done
+<<<<>>>>  have to do
+
+
+
+better gui----------------
+download option------------
+Audio Mode (Ask questions with voice) -------
+Drag-and-Drop File Upload
+Multi-file RAG
+11. Retrieval Re-ranking  Use a second model (smaller) to re-rank embeddings.Improves answer quality drastically.------------------------
+13. Table Extraction & Smart Q&A
+For Excel/CSV:
+Extract tables
+Convert to DataFrame
+Allow questions like:
+“Calculate total sales per product”
+“Which row has highest profit?”
+Impact: AI spreadsheet assistant.
+14. Code Explanation Mode
+If user uploads .py, .cpp, .java:
+Explain functions
+Detect bugs
+Suggest improvements

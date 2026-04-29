@@ -8,6 +8,7 @@ from src.llm.ollama_client import OllamaLLM
 from src.rag.chunker import TextChunker
 from src.agent.state import AgentState
 from src.file_loaders.file_loader_factory import FileLoaderFactory
+from src.rag.reranker import ReRanker
 
 class AskFileAIAgent:
     """LangGraph agent for file Q&A"""
@@ -21,8 +22,7 @@ class AskFileAIAgent:
         )
         self.llm = OllamaLLM(config.LLM_MODEL)
         self.chunker = TextChunker(config.CHUNK_SIZE, config.CHUNK_OVERLAP)
-        
-        
+        self.reranker = ReRanker(self.llm)
         self.graph = self._build_graph()
     
     def _build_graph(self) -> StateGraph:
@@ -108,7 +108,12 @@ class AskFileAIAgent:
                 query_embedding,
                 k=self.config.TOP_K_RESULTS
             )
-            state["retrieved_docs"] = retrieved
+            reranked_docs = self.reranker.rerank(
+              question=state["question"],
+              retrieved_docs=retrieved,
+              top_k=self.config.TOP_K_RESULTS
+            )
+            state["retrieved_docs"] = reranked_docs
         except Exception as e:
             state["error"] = f"Retrieval error: {str(e)}"
         return state

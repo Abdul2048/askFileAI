@@ -12,7 +12,7 @@ python-docx>=1.0.0
 openpyxl>=3.1.0
 pandas>=2.0.0
 
-# OCR (optional - install Tesseract separately)
+# OCR(install Tesseract separately)
 pytesseract>=0.3.10
 Pillow>=10.0.0
 

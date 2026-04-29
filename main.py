@@ -9,7 +9,7 @@ import tkinter as tk
 
 def main():
     """Main entry point"""
-    root = tk.Tk()
+    root = tk.Tk() 
     app = AskFileAIGUI(root)
     root.mainloop()
 

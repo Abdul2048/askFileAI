@@ -1,202 +1,291 @@
 import tkinter as tk
-from tkinter import filedialog, scrolledtext, messagebox
+from tkinter import filedialog, scrolledtext, messagebox, ttk
 import threading
 from config import Config
 from src.agent.graph import AskFileAIAgent
 from typing import Dict
+import pyttsx3
+
+# ==========================
+#   DARK MODE COLORS
+# ==========================
+BG_MAIN = "#1e1e1e"
+BG_CARD = "#363535"
+BG_SIDEBAR = "#161616"
+BTN_BG = "#3a3a3a"
+BTN_ACCENT = "#4CAF50"
+TEXT = "#ffffff"
+
+
+def rounded_button(parent, text, command, bg=BTN_BG, fg="white"):
+    btn = tk.Button(
+        parent,
+        text=text,
+        command=command,
+        bg=bg,
+        fg=fg,
+        relief="flat",
+        bd=0,
+        activebackground="#555555",
+        activeforeground="white",
+        font=("Segoe UI", 10, "bold"),
+        padx=14,
+        pady=7
+    )
+    return btn
 
 class AskFileAIGUI:
-    """Tkinter GUI for AskFileAI"""
-    
+    """Modern Dark UI for AskFileAI"""
+
     def __init__(self, root):
         self.root = root
-        self.root.title("AskFileAI - Local Intelligent File Q&A")
-        self.root.geometry("900x700")
-        
+        self.root.title("AskFileAI - Local File Question Answering")
+        self.root.geometry("1000x720")
+        self.root.configure(bg=BG_MAIN)
+
         self.config = Config()
         self.agent = AskFileAIAgent(self.config)
         self.current_file = None
+        self._create_layout()
         
-        self._create_widgets()
-    
-    def _create_widgets(self):
-        """Create GUI widgets"""
-        header = tk.Label(
-            self.root,
-            text="AskFileAI - Ask Questions About Your Files",
-            font=("Arial", 16, "bold"),
-            bg="#2c3e50",
-            fg="white",
-            pady=10
+        self.is_speaking = False
+        self.stop_flag = False
+
+    # ==========================
+    #        LAYOUT
+    # ==========================
+    def _create_layout(self):
+
+        # ---------------------------
+        # SIDEBAR
+        # ---------------------------
+        sidebar = tk.Frame(self.root, width=200, bg=BG_SIDEBAR)
+        sidebar.pack(side=tk.LEFT, fill=tk.Y)
+
+        logo = tk.Label(
+            sidebar,
+            text="AskFileAI",
+            bg=BG_SIDEBAR,
+            fg=TEXT,
+            font=("Segoe UI", 20, "bold"),
+            pady=20
         )
-        header.pack(fill=tk.X)
+        logo.pack()
+
+        tk.Label(
+            sidebar,
+            text="AI File Assistant",
+            bg=BG_SIDEBAR,
+            fg="#bbbbbb",
+            font=("Segoe UI", 10)
+        ).pack()
+
+        # BUTTONS IN SIDEBAR
+        # COPY + READ BUTTONS MOVED TO SIDEBAR
+        rounded_button(sidebar, "📋 Copy Answer", self._copy_answer, bg="#6c5ce7").pack(pady=10, fill=tk.X, padx=20)
+        #rounded_button(sidebar, "🔊 Read Aloud", self._read_answer_aloud, bg="#0984e3").pack(pady=5, fill=tk.X, padx=20)
+        rounded_button(sidebar, "🔊 Read Aloud", self._toggle_read_aloud).pack(pady=5, fill=tk.X, padx=20)
+
+
+        # DOWNLOAD & CLEAR STORE
+        rounded_button(sidebar, "⬇ Download Answer", self._download_answer, bg="#8e44ad").pack(pady=15, fill=tk.X, padx=20)
+        rounded_button(sidebar, "🧹 Clear Vector Store", self._clear_store, bg="#d43f3a").pack(pady=5, fill=tk.X, padx=20)
+
+        # ---------------------------
+        # MAIN WORK AREA
+        # ---------------------------
+        main = tk.Frame(self.root, bg=BG_MAIN)
+        main.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH, padx=10, pady=10)
+
+        # ---------------------------
+        # FILE PATH + BROWSE BUTTON
+        # ---------------------------
         
-        file_frame = tk.Frame(self.root, pady=10)
-        file_frame.pack(fill=tk.X, padx=20)
+        file_section = tk.Frame(main, bg=BG_MAIN)
+        file_section.pack(fill=tk.X)
         
-        tk.Label(file_frame, text="File Path:", font=("Arial", 10)).pack(side=tk.LEFT)
+        # Label (this stays packed)
+        tk.Label(file_section, text="Selected File:", fg=TEXT, bg=BG_MAIN).pack(anchor=tk.W)
+        
+        # A dedicated GRID frame inside file_section
+        file_row = tk.Frame(file_section, bg=BG_MAIN)
+        file_row.pack(fill=tk.X)
         
         self.file_path_var = tk.StringVar()
+        
         file_entry = tk.Entry(
-            file_frame,
+            file_row,
             textvariable=self.file_path_var,
-            width=60,
-            font=("Arial", 10)
+            font=("Segoe UI", 10),
+            bg=BG_CARD,
+            fg=TEXT,
+            relief="flat"
         )
-        file_entry.pack(side=tk.LEFT, padx=5)
+        file_entry.grid(row=0, column=0, sticky="we", padx=(0, 10))
         
-        browse_btn = tk.Button(
-            file_frame,
-            text="Browse",
-            command=self._browse_file,
-            bg="#3498db",
-            fg="white",
-            font=("Arial", 10)
-        )
-        browse_btn.pack(side=tk.LEFT)
+        browse_btn = rounded_button(file_row, "📂 Browse", self._browse_file, bg="#3498db")
+        browse_btn.grid(row=0, column=1, sticky="e")
         
-        question_frame = tk.Frame(self.root, pady=10)
-        question_frame.pack(fill=tk.X, padx=20)
-        
-        tk.Label(question_frame, text="Your Question:", font=("Arial", 10)).pack(anchor=tk.W)
-        
-        self.question_text = tk.Text(
-            question_frame,
-            height=3,
-            font=("Arial", 10),
-            wrap=tk.WORD
-        )
+        file_row.columnconfigure(0, weight=1)
+
+
+
+        # QUESTION
+        tk.Label(main, text="Your Question:", fg=TEXT, bg=BG_MAIN).pack(anchor=tk.W)
+        self.question_text = tk.Text(main, height=3, font=("Segoe UI", 10), bg=BG_CARD, fg=TEXT, relief="flat")
         self.question_text.pack(fill=tk.X, pady=5)
+
+        rounded_button(main, "Ask Question 🤖", self._ask_question, bg=BTN_ACCENT).pack(pady=5)
         
-        ask_btn = tk.Button(
-            question_frame,
-            text="Ask Question",
-            command=self._ask_question,
-            bg="#27ae60",
-            fg="white",
-            font=("Arial", 12, "bold"),
-            pady=5
-        )
-        ask_btn.pack()
-        
-        answer_frame = tk.Frame(self.root, pady=10)
-        answer_frame.pack(fill=tk.BOTH, expand=True, padx=20)
-        
-        tk.Label(answer_frame, text="Answer:", font=("Arial", 10, "bold")).pack(anchor=tk.W)
-        
+        # ---------------------------
+        # COPY & AUDIO BUTTONS
+        # ---------------------------
+        # Row of center action buttons
+        action_row = tk.Frame(main, bg=BG_MAIN)
+        action_row.pack(pady=5)
+
+        # LOADING BAR
+        self.progress = ttk.Progressbar(main, mode="indeterminate")
+        self.progress.pack(fill=tk.X, pady=5)
+        self.progress.stop()
+
+        # ANSWER BOX
+        tk.Label(main, text="Answer:", fg=TEXT, bg=BG_MAIN).pack(anchor=tk.W)
         self.answer_text = scrolledtext.ScrolledText(
-            answer_frame,
-            font=("Arial", 10),
-            wrap=tk.WORD,
-            bg="#ecf0f1"
+            main,
+            font=("Segoe UI", 10),
+            bg=BG_CARD,
+            fg=TEXT,
+            relief="flat"
         )
-        self.answer_text.pack(fill=tk.BOTH, expand=True, pady=5)
-        
-        self.status_var = tk.StringVar(value="Ready")
-        status_bar = tk.Label(
-            self.root,
-            textvariable=self.status_var,
-            relief=tk.SUNKEN,
-            anchor=tk.W,
-            font=("Arial", 9)
-        )
-        status_bar.pack(fill=tk.X, side=tk.BOTTOM)
-        
-        clear_btn = tk.Button(
-            self.root,
-            text="Clear Vector Store",
-            command=self._clear_store,
-            bg="#e74c3c",
-            fg="white"
-        )
-        clear_btn.pack(side=tk.BOTTOM, pady=5)
-    
-    def _browse_file(self):
-        """Open file browser"""
-        file_path = filedialog.askopenfilename(
-            title="Select a file",
-            filetypes=[
-                ("All supported files", "*.pdf *.docx *.doc *.txt *.md *.csv *.xlsx *.xls *.py *.cpp *.java *.js *.png *.jpg"),
-                ("PDF files", "*.pdf"),
-                ("Word files", "*.docx *.doc"),
-                ("Text files", "*.txt *.md"),
-                ("CSV files", "*.csv"),
-                ("Excel files", "*.xlsx *.xls"),
-                ("Code files", "*.py *.cpp *.java *.js"),
-                ("Images", "*.png *.jpg *.jpeg"),
-                ("All files", "*.*")
-            ]
-        )
+        self.answer_text.pack(expand=True, fill=tk.BOTH, pady=5)
+
+    # =================================================
+    #   FUNCTIONALITY
+    # =================================================
+
+    def _download_answer(self):
+        answer = self.answer_text.get("1.0", tk.END).strip()
+        if not answer:
+            messagebox.showerror("Error", "No answer to save.")
+            return
+
+        file_path = filedialog.asksaveasfilename(defaultextension=".txt")
         if file_path:
-            self.file_path_var.set(file_path)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(answer)
+            messagebox.showinfo("Saved", "Answer downloaded successfully!")
+
+    def _browse_file(self):
+        file_path = filedialog.askopenfilename()
+        if file_path:
             self.current_file = file_path
-    
+            self.file_path_var.set(file_path)
+
     def _ask_question(self):
         """Process question in separate thread"""
         file_path = self.file_path_var.get().strip()
         question = self.question_text.get("1.0", tk.END).strip()
-        
+
         if not file_path:
-            messagebox.showerror("Error", "Please select a file first!")
+            messagebox.showerror("Error", "Select a file first!")
             return
-        
+
         if not question:
-            messagebox.showerror("Error", "Please enter a question!")
+            messagebox.showerror("Error", "Enter a question!")
             return
-        
-        self.status_var.set("Processing... This may take a moment.")
+
         self.answer_text.delete("1.0", tk.END)
-        self.answer_text.insert("1.0", "Processing your question...\n\nThis includes:\n- Loading the file\n- Chunking text\n- Generating embeddings\n- Storing in vector DB\n- Retrieving relevant content\n- Generating answer\n\nPlease wait...")
-        
+        self.answer_text.insert("1.0", "Processing your question...")
+
+        self.progress.start(10)
+
         thread = threading.Thread(target=self._process_question, args=(file_path, question))
         thread.daemon = True
         thread.start()
-    
-    def _process_question(self, file_path: str, question: str):
-        """Process question with agent"""
+
+    def _process_question(self, file_path, question):
         try:
             result = self.agent.ask(file_path, question)
-            
-            self.root.after(0, self._display_answer, result)
+            self.root.after(0, lambda: self._display_answer(result))
         except Exception as e:
-            self.root.after(0, self._display_error, str(e))
-    
-    def _display_answer(self, result: Dict):
-        """Display answer in GUI"""
-        self.answer_text.delete("1.0", tk.END)
-        
-        if result["error"]:
-            self.answer_text.insert("1.0", f"❌ Error: {result['error']}")
-            self.status_var.set("Error occurred")
-        else:
-            answer_display = f"📝 Good question here is your answer:\n\n{result['answer']}\n\n"
-            answer_display += f"{'='*80}\n\n"
-            #answer_display += f"📚 Retrieved Context ({len(result['retrieved_docs'])} chunks):\n\n"
-            
-          #  for i, doc in enumerate(result['retrieved_docs']):
-          #      answer_display += f"[Chunk {i+1}] (Relevance: {1 - doc.get('distance', 0):.2f})\n"
-          #      answer_display += f"{doc['text'][:300]}...\n\n"
-            
-            self.answer_text.insert("1.0", answer_display)
-            self.status_var.set("Answer generated successfully")
-    
-    def _display_error(self, error: str):
-        """Display error message"""
+            self.root.after(0, lambda: self._display_error(str(e)))
+
+    def _display_answer(self, result):
+        self.progress.stop() 
+        self.answer_text.delete("1.0", tk.END) #
+        self.answer_text.insert("1.0", f"📝 Great question here is your answer:\n\n{result['answer']}")
+
+    def _display_error(self, error):
+        self.progress.stop()
         self.answer_text.delete("1.0", tk.END)
         self.answer_text.insert("1.0", f"❌ Error: {error}")
-        self.status_var.set("Error occurred")
-        messagebox.showerror("Error", error)
-    
-    def _clear_store(self): 
-        """Clear vector store"""
-        if messagebox.askyesno("Confirm", "Clear all stored vectors?"):
-            try:
-                self.agent.vector_store.clear_collection()
-                messagebox.showinfo("Success", "Vector store cleared!")
-                self.status_var.set("Vector store cleared")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to clear: {str(e)}")
 
+    def _clear_store(self):
+        try:
+            self.agent.vector_store.clear_collection()
+            messagebox.showinfo("Cleared", "Vector Store cleaned successfully!")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def _copy_answer(self):
+     answer = self.answer_text.get("1.0", tk.END).strip()
+     if answer:
+         self.root.clipboard_clear()
+         self.root.clipboard_append(answer)
+         messagebox.showinfo("Copied", "Answer copied to clipboard!")
+
+    import pyttsx3
+    import threading
+    import time
+    def _toggle_read_aloud(self):
+        """Toggle between start and stop"""
+        if not self.is_speaking:
+            self._start_reading()
+        else:
+            self._stop_reading()
+       
+    def _start_reading(self):
+        """Start reading aloud"""
+        text = self.answer_text.get("1.0", tk.END).strip()
+        if not text:
+            messagebox.showerror("Error", "No answer to read aloud.")
+            return
+    
+        self.is_speaking = True
+        self.stop_flag = False
+    
+        # Create a FRESH engine every time
+        self.engine = pyttsx3.init()
+        self.engine.setProperty("rate", 165)
+    
+        threading.Thread(target=self._tts_thread, args=(text,), daemon=True).start()
+      
+    def _stop_reading(self):
+        """Stop reading aloud instantly"""
+        self.stop_flag = True
+        self.is_speaking = False
+    
+        if hasattr(self, "engine") and self.engine is not None:
+            try:
+                self.engine.stop()
+            except:
+                pass
+      
+    def _tts_thread(self, text):
+        """Thread that supports stopping mid-sentence"""
+        for sentence in text.split(". "):
+            if self.stop_flag:
+                break
+            
+            try:
+                self.engine.say(sentence)
+                self.engine.runAndWait()
+            except:
+                break
+    
+        self.is_speaking = False
+    
 
 def main():
     """Main entry point"""
@@ -207,3 +296,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
